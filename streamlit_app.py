@@ -19,7 +19,6 @@ UPLOAD_FOLDER = "uploaded_audios"
 PATIENT_DATA = "patient_data.json"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-
 def save_patient_data(data):
     if os.path.exists(PATIENT_DATA):
         with open(PATIENT_DATA, "r") as f:
@@ -30,19 +29,16 @@ def save_patient_data(data):
     with open(PATIENT_DATA, "w") as f:
         json.dump(existing, f)
 
-
 def load_patient_data():
     if os.path.exists(PATIENT_DATA):
         with open(PATIENT_DATA, "r") as f:
             return json.load(f)
     return []
 
-
 def send_sms(phone_number, message):
     TWILIO_ACCOUNT_SID = "AC15ee7441c990e6e8a5afc996ed4a55a1"
     TWILIO_AUTH_TOKEN = "6bc0831dae8edb1753ace573a92b6337"
     TWILIO_PHONE_NUMBER = "+19096391894"
-
     client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
     client.messages.create(
         body=message,
@@ -50,17 +46,14 @@ def send_sms(phone_number, message):
         to=phone_number
     )
 
-
 def reduce_noise(audio, sr, cutoff=0.05):
     b, a = butter(6, cutoff)
     return lfilter(b, a, audio)
-
 
 def wav_to_bytes(audio_data, sample_rate):
     output = io.BytesIO()
     wav.write(output, sample_rate, audio_data.astype(np.int16))
     return output.getvalue()
-
 
 def show_waveform(path, label):
     sr, audio = wav.read(path)
@@ -74,12 +67,10 @@ def show_waveform(path, label):
     ax.set_ylabel("Amplitude")
     st.pyplot(fig)
 
-
 def edit_waveform(path, label):
     sr, audio = wav.read(path)
     if audio.ndim > 1:
         audio = audio[:, 0]
-
     with st.expander(f"🎭 Edit Parameters - {label}", expanded=True):
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -94,7 +85,6 @@ def edit_waveform(path, label):
         if st.button(f"🔊 Denoise {label} Audio"):
             filtered_audio = reduce_noise(adjusted_audio, sr, cutoff=noise_cutoff)
             st.audio(io.BytesIO(wav_to_bytes(filtered_audio, sr)), format='audio/wav')
-
 
 st.subheader("🎧 Upload Heart Valve Sounds")
 valve_labels = ["Aortic", "Pulmonary", "Tricuspid", "Mitral"]
@@ -132,46 +122,46 @@ with st.sidebar.expander("🧾 Add Patient Info"):
     notes = st.text_area("Clinical Notes")
     phone = st.text_input("📞 Patient Phone (E.g. +15558675309)")
 
-    if height and weight:
-        bmi = round(weight / ((height / 100) ** 2), 2)
-        st.markdown(f"**BMI:** {bmi}")
+if height and weight:
+    bmi = round(weight / ((height / 100) ** 2), 2)
+    st.markdown(f"**BMI:** {bmi}")
 
-    if st.button("📂 Save Patient Case", type="primary"):
-        if len(valve_paths) == 4:
-            data = {
-                "name": name,
-                "age": age,
-                "gender": gender,
-                "notes": notes,
-                "height": height,
-                "weight": weight,
-                "bmi": bmi,
-                "file": ", ".join([os.path.basename(valve_paths[k]) for k in valve_labels]),
-                "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            }
-            save_patient_data(data)
-            st.session_state["patient_saved"] = True
-            st.success("Patient data saved. Showing waveforms...")
-            for label in valve_labels:
-                path = valve_paths[label]
-                show_waveform(path, label)
-        else:
-            st.warning("Please upload all 4 valve audios.")
+if st.button("📂 Save Patient Case", type="primary"):
+    if len(valve_paths) == 4:
+        data = {
+            "name": name,
+            "age": age,
+            "gender": gender,
+            "notes": notes,
+            "height": height,
+            "weight": weight,
+            "bmi": bmi,
+            "file": ", ".join([os.path.basename(valve_paths[k]) for k in valve_labels]),
+            "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        save_patient_data(data)
+        st.session_state["patient_saved"] = True
+        st.success("Patient data saved. Showing waveforms...")
+        for label in valve_labels:
+            path = valve_paths[label]
+            show_waveform(path, label)
+    else:
+        st.warning("Please upload all 4 valve audios.")
 
-    if st.button("📤 Send Case via SMS"):
-        if len(valve_paths) == 4 and phone:
-            try:
-                message = (
-                    f"🩺 PCG Case Summary\n"
-                    f"Name: {name}\nAge: {age}\nGender: {gender}\nBMI: {bmi}\n"
-                    f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\nNotes: {notes}"
-                )
-                send_sms(phone, message)
-                st.success("📨 Case sent via SMS.")
-            except Exception as e:
-                st.error(f"❌ Failed to send SMS: {e}")
-        else:
-            st.warning("Please complete all uploads and phone number.")
+if st.button("📤 Send Case via SMS"):
+    if len(valve_paths) == 4 and phone:
+        try:
+            message = (
+                f"🩺 PCG Case Summary\n"
+                f"Name: {name}\nAge: {age}\nGender: {gender}\nBMI: {bmi}\n"
+                f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\nNotes: {notes}"
+            )
+            send_sms(phone, message)
+            st.success("📨 Case sent via SMS.")
+        except Exception as e:
+            st.error(f"❌ Failed to send SMS: {e}")
+    else:
+        st.warning("Please complete all uploads and phone number.")
 
 if st.session_state["patient_saved"]:
     st.subheader("💡 Edit Waveforms")
@@ -185,9 +175,9 @@ if patient_data:
     for i, entry in enumerate(patient_data[::-1]):
         with st.expander(f"📌 {entry['name']} ({entry['age']} y/o) - {entry['date']}"):
             st.write(f"Gender: {entry['gender']}")
-            st.write(f"Height: {entry['height']} cm")
-            st.write(f"Weight: {entry['weight']} kg")
-            st.write(f"BMI: {entry['bmi']}")
+            st.write(f"Height: {entry.get('height', 'N/A')} cm")
+            st.write(f"Weight: {entry.get('weight', 'N/A')} kg")
+            st.write(f"BMI: {entry.get('bmi', 'N/A')}")
             st.write(f"Notes: {entry['notes']}")
             for label in valve_labels:
                 filename = entry['file'].split(', ')[0]
@@ -205,4 +195,3 @@ div.stButton > button:first-child {
     color: white;
 }
 </style>""", unsafe_allow_html=True)
-            
