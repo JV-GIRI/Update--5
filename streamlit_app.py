@@ -61,40 +61,42 @@ def display_waveform(path, label):
     if audio.ndim > 1:
         audio = audio[:, 0]
 
-    if st.button(f"🛠 Edit {label} Waveform"):
-        with st.expander(f"🎛 Edit Parameters - {label}", expanded=True):
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                amplitude_factor = st.slider(f"{label} Amplitude", 0.1, 5.0, 1.0, key=f"amp_{label}")
-            with col2:
-                duration_slider = st.slider(f"{label} Duration (s)", 1, int(len(audio) / sr), 5, key=f"dur_{label}")
-            with col3:
-                noise_cutoff = st.slider(f"{label} Noise Cutoff", 0.01, 0.5, 0.05, step=0.01, key=f"noise_{label}")
+    with st.expander(f"🎭 Edit Parameters - {label}", expanded=True):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            amplitude_factor = st.slider(f"{label} Amplitude", 0.1, 5.0, 1.0, key=f"amp_{label}")
+        with col2:
+            duration_slider = st.slider(f"{label} Duration (s)", 1, int(len(audio) / sr), 5, key=f"dur_{label}")
+        with col3:
+            noise_cutoff = st.slider(f"{label} Noise Cutoff", 0.01, 0.5, 0.05, step=0.01, key=f"noise_{label}")
 
-            zoom_start, zoom_end = st.slider(
-                f"{label} Zoom (s)", 0.0, float(duration_slider), (0.0, float(duration_slider)), step=0.1, key=f"zoom_{label}"
-            )
+        zoom_start, zoom_end = st.slider(
+            f"{label} Zoom (s)", 0.0, float(duration_slider), (0.0, float(duration_slider)), step=0.1, key=f"zoom_{label}"
+        )
 
-            adjusted_audio = audio[:duration_slider * sr] * amplitude_factor
-            filtered_audio = reduce_noise(adjusted_audio, sr, cutoff=noise_cutoff)
+        adjusted_audio = audio[:duration_slider * sr] * amplitude_factor
+        filtered_audio = reduce_noise(adjusted_audio, sr, cutoff=noise_cutoff)
 
-            start_idx = int(zoom_start * sr)
-            end_idx = int(zoom_end * sr)
-            zoomed_audio = filtered_audio[start_idx:end_idx]
+        start_idx = int(zoom_start * sr)
+        end_idx = int(zoom_end * sr)
+        zoomed_audio = filtered_audio[start_idx:end_idx]
 
-            fig, ax = plt.subplots()
-            times = np.linspace(zoom_start, zoom_end, len(zoomed_audio))
-            ax.plot(times, zoomed_audio)
-            ax.set_xlabel("Time (s)")
-            ax.set_ylabel("Amplitude")
-            st.pyplot(fig)
+        fig, ax = plt.subplots()
+        times = np.linspace(zoom_start, zoom_end, len(zoomed_audio))
+        ax.plot(times, zoomed_audio)
+        ax.set_xlabel("Time (s)")
+        ax.set_ylabel("Amplitude")
+        st.pyplot(fig)
 
-            if st.checkbox(f"🔉 Play Denoised {label} Audio", key=f"denoise_{label}"):
-                denoised_audio_io = io.BytesIO()
-                wav.write(denoised_audio_io, sr, filtered_audio.astype(np.int16))
-                st.audio(denoised_audio_io, format='audio/wav')
+        st.audio(io.BytesIO(wav_to_bytes(filtered_audio, sr)), format='audio/wav')
 
-# Grid upload section
+# Convert audio array to BytesIO WAV
+def wav_to_bytes(audio_data, sample_rate):
+    output = io.BytesIO()
+    wav.write(output, sample_rate, audio_data.astype(np.int16))
+    return output.getvalue()
+
+# Upload section with styled buttons
 st.subheader("🎧 Upload Heart Valve Sounds")
 valve_labels = ["Aortic", "Pulmonary", "Tricuspid", "Mitral"]
 valve_paths = {}
@@ -102,61 +104,26 @@ cols = st.columns(4)
 
 for i, label in enumerate(valve_labels):
     with cols[i]:
-        file = st.file_uploader(f"Upload {label} Valve", type=["wav"], key=f"upload_{label}")
-        if file:
-            path = os.path.join(UPLOAD_FOLDER, f"{label}_{file.name}")
-            with open(path, "wb") as f:
-                f.write(file.getbuffer())
-            st.audio(path, format="audio/wav")
-            valve_paths[label] = path
-            display_waveform(path, label)
+        upload_style = """
+        <style>
+        .orange-upload > label div.stButton > button {
+            background-color: orange !important;
+            color: white !important;
+        }
+        </style>
+        """
+        st.markdown(upload_style, unsafe_allow_html=True)
+        with st.container():
+            file = st.file_uploader(f"Upload {label} Valve", type=["wav"], key=f"upload_{label}")
+            if file:
+                path = os.path.join(UPLOAD_FOLDER, f"{label}_{file.name}")
+                with open(path, "wb") as f:
+                    f.write(file.getbuffer())
+                st.audio(path, format="audio/wav")
+                valve_paths[label] = path
+                display_waveform(path, label)
 
-# Sidebar: Upload and Recording
-st.sidebar.header("📁 Upload or Record")
-upload_file = st.sidebar.file_uploader("Upload WAV File", type=["wav"])
-
-class AudioProcessor(AudioProcessorBase):
-    def __init__(self):
-        self.frames = []
-    def recv(self, frame: av.AudioFrame) -> av.AudioFrame:
-        self.frames.append(frame)
-        return frame
-
-rec_path = None
-ctx = webrtc_streamer(
-    key="record",
-    mode=WebRtcMode.SENDONLY,
-    audio_receiver_size=1024,
-    media_stream_constraints={"video": False, "audio": True},
-    audio_processor_factory=AudioProcessor,
-    async_processing=True,
-)
-
-if ctx.audio_receiver:
-    if st.sidebar.button("🎙️ Save Microphone Recording"):
-        audio_frames = ctx.audio_receiver.get_frames(timeout=1)
-        if audio_frames:
-            raw_audio = np.concatenate([frame.to_ndarray().flatten() for frame in audio_frames])
-            raw_audio = (raw_audio * 32767).astype(np.int16)
-            rec_path = os.path.join(UPLOAD_FOLDER, "recorded.wav")
-            wav.write(rec_path, rate=48000, data=raw_audio)
-            st.sidebar.success("Recording saved.")
-        else:
-            st.sidebar.warning("No audio captured.")
-
-# Determine final audio path
-path = None
-if upload_file:
-    path = os.path.join(UPLOAD_FOLDER, upload_file.name)
-    with open(path, "wb") as f:
-        f.write(upload_file.getbuffer())
-    st.success("File uploaded successfully!")
-    st.audio(path, format="audio/wav")
-elif rec_path:
-    path = rec_path
-    st.audio(path, format="audio/wav")
-
-# Patient Info Sidebar
+# Patient Info Sidebar (no upload option here now)
 if "patient_saved" not in st.session_state:
     st.session_state["patient_saved"] = False
 
@@ -167,25 +134,24 @@ with st.sidebar.expander("🧾 Add Patient Info"):
     notes = st.text_area("Clinical Notes")
     phone = st.text_input("📞 Patient Phone (E.g. +15558675309)")
 
-    if st.button("💾 Save Patient Case"):
-        if path:
-            filename = os.path.basename(path)
+    if st.button("📂 Save Patient Case", type="primary"):
+        if len(valve_paths) == 4:
             data = {
                 "name": name,
                 "age": age,
                 "gender": gender,
                 "notes": notes,
-                "file": filename,
+                "file": ", ".join([os.path.basename(valve_paths[k]) for k in valve_labels]),
                 "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }
             save_patient_data(data)
             st.session_state["patient_saved"] = True
-            st.success("Patient data saved. Now analyzing the audio...")
+            st.success("Patient data saved.")
         else:
-            st.warning("Please upload or record a PCG file before saving.")
+            st.warning("Please upload all 4 valve audios.")
 
     if st.button("📤 Send Case via SMS"):
-        if path and phone:
+        if len(valve_paths) == 4 and phone:
             try:
                 message = (
                     f"🩺 PCG Case Summary\n"
@@ -197,10 +163,7 @@ with st.sidebar.expander("🧾 Add Patient Info"):
             except Exception as e:
                 st.error(f"❌ Failed to send SMS: {e}")
         else:
-            st.warning("Please enter a valid phone number and upload or record an audio.")
-
-if path and st.session_state["patient_saved"]:
-    display_waveform(path, "Final")
+            st.warning("Please complete all uploads and phone number.")
 
 # Case History Section
 st.subheader("📚 Case History")
@@ -210,12 +173,22 @@ if patient_data:
         with st.expander(f"📌 {entry['name']} ({entry['age']} y/o) - {entry['date']}"):
             st.write(f"**Gender:** {entry['gender']}")
             st.write(f"**Notes:** {entry['notes']}")
-            file_path = os.path.join(UPLOAD_FOLDER, entry["file"])
-            if os.path.exists(file_path):
-                st.audio(file_path, format="audio/wav")
-                display_waveform(file_path, f"history_{i}")
-            else:
-                st.error("Audio file missing.")
+            for label in valve_labels:
+                audio_file = os.path.join(UPLOAD_FOLDER, f"{label}_{entry['file'].split(', ')[0]}")
+                if os.path.exists(audio_file):
+                    st.audio(audio_file, format="audio/wav")
+                    display_waveform(audio_file, f"history_{label}_{i}")
 else:
     st.info("No history records found.")
-    
+
+# Add button styling
+button_style = """
+<style>
+    div.stButton > button:first-child {
+        background-color: #006400;
+        color: white;
+    }
+</style>
+"""
+st.markdown(button_style, unsafe_allow_html=True)
+            
