@@ -71,20 +71,19 @@ def edit_waveform(path, label):
     sr, audio = wav.read(path)
     if audio.ndim > 1:
         audio = audio[:, 0]
-    with st.expander(f"🎭 Edit Parameters - {label}", expanded=True):
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            amplitude_factor = st.slider(f"{label} Amplitude", 0.1, 5.0, 1.0, key=f"amp_{label}")
-        with col2:
-            duration_slider = st.slider(f"{label} Duration (s)", 1, int(len(audio) / sr), 5, key=f"dur_{label}")
-        with col3:
-            noise_cutoff = st.slider(f"{label} Noise Cutoff", 0.01, 0.5, 0.05, step=0.01, key=f"noise_{label}")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        amplitude_factor = st.slider(f"{label} Amplitude", 0.1, 5.0, 1.0, key=f"amp_{label}")
+    with col2:
+        duration_slider = st.slider(f"{label} Duration (s)", 1, int(len(audio) / sr), 5, key=f"dur_{label}")
+    with col3:
+        noise_cutoff = st.slider(f"{label} Noise Cutoff", 0.01, 0.5, 0.05, step=0.01, key=f"noise_{label}")
 
-        adjusted_audio = audio[:duration_slider * sr] * amplitude_factor
+    adjusted_audio = audio[:duration_slider * sr] * amplitude_factor
 
-        if st.button(f"🔊 Denoise {label} Audio"):
-            filtered_audio = reduce_noise(adjusted_audio, sr, cutoff=noise_cutoff)
-            st.audio(io.BytesIO(wav_to_bytes(filtered_audio, sr)), format='audio/wav')
+    if st.button(f"🆊️ Denoise {label} Audio", key=f"denoise_{label}"):
+        filtered_audio = reduce_noise(adjusted_audio, sr, cutoff=noise_cutoff)
+        st.audio(io.BytesIO(wav_to_bytes(filtered_audio, sr)), format='audio/wav')
 
 st.subheader("🎧 Upload Heart Valve Sounds")
 valve_labels = ["Aortic", "Pulmonary", "Tricuspid", "Mitral"]
@@ -113,7 +112,7 @@ for i, label in enumerate(valve_labels):
 if "patient_saved" not in st.session_state:
     st.session_state["patient_saved"] = False
 
-with st.sidebar.expander("🧾 Add Patient Info"):
+with st.sidebar.expander("🗞️ Add Patient Info"):
     name = st.text_input("Name")
     age = st.number_input("Age", 1, 120)
     height = st.number_input("Height (cm)", min_value=50.0, max_value=250.0)
@@ -141,18 +140,23 @@ if st.button("📂 Save Patient Case", type="primary"):
         }
         save_patient_data(data)
         st.session_state["patient_saved"] = True
-        st.success("Patient data saved. Showing waveforms...")
-        for label in valve_labels:
-            path = valve_paths[label]
-            show_waveform(path, label)
-    else:
-        st.warning("Please upload all 4 valve audios.")
+        st.success("Patient data saved.")
+
+if st.session_state["patient_saved"]:
+    st.subheader("🔹 Saved Waveforms")
+    grid_cols = st.columns(2)
+    for i, label in enumerate(valve_labels):
+        with grid_cols[i % 2]:
+            if label in valve_paths:
+                show_waveform(valve_paths[label], label)
+                if st.button(f"Edit {label}", key=f"edit_{label}"):
+                    edit_waveform(valve_paths[label], label)
 
 if st.button("📤 Send Case via SMS"):
     if len(valve_paths) == 4 and phone:
         try:
             message = (
-                f"🩺 PCG Case Summary\n"
+                f"🎺 PCG Case Summary\n"
                 f"Name: {name}\nAge: {age}\nGender: {gender}\nBMI: {bmi}\n"
                 f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\nNotes: {notes}"
             )
@@ -162,12 +166,6 @@ if st.button("📤 Send Case via SMS"):
             st.error(f"❌ Failed to send SMS: {e}")
     else:
         st.warning("Please complete all uploads and phone number.")
-
-if st.session_state["patient_saved"]:
-    st.subheader("💡 Edit Waveforms")
-    for label in valve_labels:
-        if label in valve_paths:
-            edit_waveform(valve_paths[label], label)
 
 st.subheader("📚 Case History")
 patient_data = load_patient_data()
@@ -195,3 +193,4 @@ div.stButton > button:first-child {
     color: white;
 }
 </style>""", unsafe_allow_html=True)
+                                      
