@@ -61,10 +61,10 @@ def wav_to_bytes(audio_data, sample_rate):
     return output.getvalue()
 
 
-def show_waveform(audio, sr, label):
+def show_waveform(audio, sr, label, color='blue'):
     times = np.linspace(0, len(audio)/sr, num=len(audio))
     fig, ax = plt.subplots()
-    ax.plot(times, audio)
+    ax.plot(times, audio, color=color)
     ax.set_title(f"Waveform - {label}")
     ax.set_xlabel("Time (s)")
     ax.set_ylabel("Amplitude")
@@ -76,20 +76,19 @@ def edit_waveform(path, label):
     if audio.ndim > 1:
         audio = audio[:, 0]
 
-    with st.expander(f"✏️ Edit {label} Audio"):
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            amplitude_factor = st.slider(f"{label} Amplitude", 0.1, 5.0, 1.0, key=f"amp_slider_{label}")
-        with col2:
-            duration_slider = st.slider(f"{label} Duration (s)", 1, int(len(audio) / sr), 5, key=f"dur_slider_{label}")
-        with col3:
-            noise_cutoff = st.slider(f"{label} Noise Cutoff", 0.01, 0.5, 0.05, step=0.01, key=f"noise_slider_{label}")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        amplitude_factor = st.slider(f"{label} Amplitude", 0.1, 5.0, 1.0, key=f"amp_slider_{label}")
+    with col2:
+        duration_slider = st.slider(f"{label} Duration (s)", 1, int(len(audio) / sr), 5, key=f"dur_slider_{label}")
+    with col3:
+        noise_cutoff = st.slider(f"{label} Noise Cutoff", 0.01, 0.5, 0.05, step=0.01, key=f"noise_slider_{label}")
 
-        if st.button(f"Apply Edit for {label}", key=f"edit_btn_{label}"):
-            adjusted_audio = audio[:duration_slider * sr] * amplitude_factor
-            filtered_audio = reduce_noise(adjusted_audio, sr, cutoff=noise_cutoff)
-            st.audio(io.BytesIO(wav_to_bytes(filtered_audio, sr)), format='audio/wav')
-            show_waveform(filtered_audio, sr, f"{label} (Edited)")
+    if st.button(f"Apply Edit for {label}", key=f"edit_btn_{label}"):
+        adjusted_audio = audio[:duration_slider * sr] * amplitude_factor
+        filtered_audio = reduce_noise(adjusted_audio, sr, cutoff=noise_cutoff)
+        st.audio(io.BytesIO(wav_to_bytes(filtered_audio, sr)), format='audio/wav')
+        show_waveform(filtered_audio, sr, f"{label} (Edited)", color='red')
 
 
 st.subheader("🎧 Upload Heart Valve Sounds")
@@ -141,21 +140,15 @@ if st.button("📂 Save Patient Case", type="primary"):
         st.success("Patient data saved.")
 
 if st.session_state["patient_saved"]:
-    st.subheader("🔹 Original Waveforms")
-    waveform_cols = st.columns(4)
-    for i, label in enumerate(valve_labels):
-        if label in valve_paths:
-            with waveform_cols[i]:
-                sr, audio = wav.read(valve_paths[label])
-                if audio.ndim > 1:
-                    audio = audio[:, 0]
-                st.write(f"**{label}**")
-                st.audio(valve_paths[label], format="audio/wav")
-                show_waveform(audio, sr, label)
-
-    st.subheader("🔧 Edit Valve Sounds")
+    st.subheader("🔹 Original & Edited Waveforms")
     for label in valve_labels:
         if label in valve_paths:
+            st.markdown(f"### {label} Valve")
+            sr, audio = wav.read(valve_paths[label])
+            if audio.ndim > 1:
+                audio = audio[:, 0]
+            st.audio(valve_paths[label], format="audio/wav")
+            show_waveform(audio, sr, f"{label} (Original)")
             edit_waveform(valve_paths[label], label)
 
 if st.button("📤 Send Case via SMS"):
@@ -202,3 +195,4 @@ div.stButton > button:first-child {
     color: white;
 }
 </style>""", unsafe_allow_html=True)
+                        
