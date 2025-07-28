@@ -13,7 +13,7 @@ import io
 from twilio.rest import Client
 
 st.set_page_config(layout="wide")
-st.title("💓 HEARTEST : Giri's AI based PCG analyzer")
+st.title("💓 HEARTEST : Giri's PCG analyzer")
 
 UPLOAD_FOLDER = "uploaded_audios"
 PATIENT_DATA = "patient_data.json"
@@ -113,11 +113,11 @@ if "patient_saved" not in st.session_state:
 with st.sidebar.expander("🗞️ Add Patient Info"):
     name = st.text_input("Name")
     age = st.number_input("Age", 1, 120)
-    height = st.number_input("Height (cm)", min_value=0, max_value=250.0)
-    weight = st.number_input("Weight (kg)", min_value=0, max_value=300.0)
+    height = st.number_input("Height (cm)", min_value=50.0, max_value=250.0)
+    weight = st.number_input("Weight (kg)", min_value=2.0, max_value=300.0)
     gender = st.radio("Gender", ["Male", "Female", "Other"])
     notes = st.text_area("Clinical Notes")
-    phone = st.text_input("📞 Patient Phone (E.g. +91558675309)")
+    phone = st.text_input("📞 Patient Phone (E.g. +15558675309)")
 
 if height and weight:
     bmi = round(weight / ((height / 100) ** 2), 2)
@@ -202,4 +202,3 @@ div.stButton > button:first-child {
     color: white;
 }
 </style>""", unsafe_allow_html=True)
-    
