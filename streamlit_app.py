@@ -113,8 +113,8 @@ if "patient_saved" not in st.session_state:
 with st.sidebar.expander("🗞️ Add Patient Info"):
     name = st.text_input("Name")
     age = st.number_input("Age", 1, 120)
-    height = st.number_input("Height (cm)", min_value= , max_value=250.0)
-    weight = st.number_input("Weight (kg)", min_value= , max_value=300.0)
+    height = st.number_input("Height (cm)", min_value=0, max_value=250.0)
+    weight = st.number_input("Weight (kg)", min_value=0, max_value=300.0)
     gender = st.radio("Gender", ["Male", "Female", "Other"])
     notes = st.text_area("Clinical Notes")
     phone = st.text_input("📞 Patient Phone (E.g. +91558675309)")
