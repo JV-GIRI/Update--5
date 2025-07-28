@@ -13,7 +13,7 @@ import io
 from twilio.rest import Client
 
 st.set_page_config(layout="wide")
-st.title("💓 HEARTEST : Giri's PCG analyzer")
+st.title("💓 HEARTEST : Giri's AI PCG analyzer")
 
 UPLOAD_FOLDER = "uploaded_audios"
 PATIENT_DATA = "patient_data.json"
