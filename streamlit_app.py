@@ -13,7 +13,7 @@ import io
 from twilio.rest import Client
 
 st.set_page_config(layout="wide")
-st.title("💓 HEARTEST : Giri's PCG analyzer")
+st.title("💓 HEARTEST : Giri's AI PCG analyzer")
 
 UPLOAD_FOLDER = "uploaded_audios"
 PATIENT_DATA = "patient_data.json"
@@ -99,7 +99,7 @@ def edit_waveform(path, label):
     st.pyplot(fig)
 
 
-st.subheader("🎧 Upload Heart Valve Sounds")
+st.subheader("🫀 Upload Heart Valve Sounds")
 valve_labels = ["Aortic", "Pulmonary", "Tricuspid", "Mitral"]
 valve_paths = {}
 cols = st.columns(4)
@@ -133,7 +133,7 @@ with st.sidebar.expander("🗞️ Add Patient Info"):
     weight = st.number_input("Weight (kg)", min_value=2.0, max_value=300.0)
     gender = st.radio("Gender", ["Male", "Female", "Other"])
     notes = st.text_area("Clinical Notes")
-    phone = st.text_input("📞 Patient Phone (E.g. +15558675309)")
+    phone = st.text_input("📞 Patient Phone (E.g. +91558675309)")
 
 if height and weight:
     bmi = round(weight / ((height / 100) ** 2), 2)
