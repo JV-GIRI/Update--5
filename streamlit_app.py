@@ -19,6 +19,7 @@ UPLOAD_FOLDER = "uploaded_audios"
 PATIENT_DATA = "patient_data.json"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+
 def save_patient_data(data):
     if os.path.exists(PATIENT_DATA):
         with open(PATIENT_DATA, "r") as f:
@@ -29,11 +30,13 @@ def save_patient_data(data):
     with open(PATIENT_DATA, "w") as f:
         json.dump(existing, f)
 
+
 def load_patient_data():
     if os.path.exists(PATIENT_DATA):
         with open(PATIENT_DATA, "r") as f:
             return json.load(f)
     return []
+
 
 def send_sms(phone_number, message):
     TWILIO_ACCOUNT_SID = "AC15ee7441c990e6e8a5afc996ed4a55a1"
@@ -46,14 +49,17 @@ def send_sms(phone_number, message):
         to=phone_number
     )
 
+
 def reduce_noise(audio, sr, cutoff=0.05):
     b, a = butter(6, cutoff)
     return lfilter(b, a, audio)
+
 
 def wav_to_bytes(audio_data, sample_rate):
     output = io.BytesIO()
     wav.write(output, sample_rate, audio_data.astype(np.int16))
     return output.getvalue()
+
 
 def show_waveform(path, label):
     sr, audio = wav.read(path)
@@ -67,23 +73,31 @@ def show_waveform(path, label):
     ax.set_ylabel("Amplitude")
     st.pyplot(fig)
 
+
 def edit_waveform(path, label):
     sr, audio = wav.read(path)
     if audio.ndim > 1:
         audio = audio[:, 0]
     col1, col2, col3 = st.columns(3)
     with col1:
-        amplitude_factor = st.slider(f"{label} Amplitude", 0.1, 5.0, 1.0, key=f"amp_{label}")
+        amplitude_factor = st.slider(f"{label} Amplitude", 0.1, 5.0, 1.0, key=f"amp_slider_{label}")
     with col2:
-        duration_slider = st.slider(f"{label} Duration (s)", 1, int(len(audio) / sr), 5, key=f"dur_{label}")
+        duration_slider = st.slider(f"{label} Duration (s)", 1, int(len(audio) / sr), 5, key=f"dur_slider_{label}")
     with col3:
-        noise_cutoff = st.slider(f"{label} Noise Cutoff", 0.01, 0.5, 0.05, step=0.01, key=f"noise_{label}")
+        noise_cutoff = st.slider(f"{label} Noise Cutoff", 0.01, 0.5, 0.05, step=0.01, key=f"noise_slider_{label}")
 
     adjusted_audio = audio[:duration_slider * sr] * amplitude_factor
 
-    if st.button(f"🆊️ Denoise {label} Audio", key=f"denoise_{label}"):
-        filtered_audio = reduce_noise(adjusted_audio, sr, cutoff=noise_cutoff)
-        st.audio(io.BytesIO(wav_to_bytes(filtered_audio, sr)), format='audio/wav')
+    filtered_audio = reduce_noise(adjusted_audio, sr, cutoff=noise_cutoff)
+    st.audio(io.BytesIO(wav_to_bytes(filtered_audio, sr)), format='audio/wav')
+    times = np.linspace(0, len(filtered_audio)/sr, num=len(filtered_audio))
+    fig, ax = plt.subplots()
+    ax.plot(times, filtered_audio)
+    ax.set_title(f"Edited Waveform - {label}")
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Amplitude")
+    st.pyplot(fig)
+
 
 st.subheader("🎧 Upload Heart Valve Sounds")
 valve_labels = ["Aortic", "Pulmonary", "Tricuspid", "Mitral"]
@@ -144,13 +158,11 @@ if st.button("📂 Save Patient Case", type="primary"):
 
 if st.session_state["patient_saved"]:
     st.subheader("🔹 Saved Waveforms")
-    grid_cols = st.columns(2)
-    for i, label in enumerate(valve_labels):
-        with grid_cols[i % 2]:
-            if label in valve_paths:
+    for label in valve_labels:
+        if label in valve_paths:
+            with st.expander(f"{label} Waveform"):
                 show_waveform(valve_paths[label], label)
-                if st.button(f"Edit {label}", key=f"edit_{label}"):
-                    edit_waveform(valve_paths[label], label)
+                edit_waveform(valve_paths[label], label)
 
 if st.button("📤 Send Case via SMS"):
     if len(valve_paths) == 4 and phone:
@@ -193,4 +205,3 @@ div.stButton > button:first-child {
     color: white;
 }
 </style>""", unsafe_allow_html=True)
-                                      
