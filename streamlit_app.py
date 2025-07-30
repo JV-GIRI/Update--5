@@ -13,7 +13,7 @@ import io
 from twilio.rest import Client
 
 st.set_page_config(layout="wide")
-st.title("💓 HEARTEST : Giri's AI PCG analyzer")
+st.title("💓 HEARTEST : Giri's PCG analyzer")
 
 UPLOAD_FOLDER = "uploaded_audios"
 PATIENT_DATA = "patient_data.json"
@@ -71,10 +71,12 @@ def show_waveform(audio, sr, label, color='blue'):
     st.pyplot(fig)
 
 
-def edit_waveform(path, label):
+def edit_and_show_waveform(path, label):
     sr, audio = wav.read(path)
     if audio.ndim > 1:
         audio = audio[:, 0]
+
+    st.markdown(f"#### {label} Valve")
 
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -84,9 +86,16 @@ def edit_waveform(path, label):
     with col3:
         noise_cutoff = st.slider(f"{label} Noise Cutoff", 0.01, 0.5, 0.05, step=0.01, key=f"noise_slider_{label}")
 
-    if st.button(f"Apply Edit for {label}", key=f"edit_btn_{label}"):
-        adjusted_audio = audio[:duration_slider * sr] * amplitude_factor
-        filtered_audio = reduce_noise(adjusted_audio, sr, cutoff=noise_cutoff)
+    adjusted_audio = audio[:duration_slider * sr] * amplitude_factor
+    filtered_audio = reduce_noise(adjusted_audio, sr, cutoff=noise_cutoff)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.write(f"**{label} Original**")
+        st.audio(path, format="audio/wav")
+        show_waveform(audio, sr, f"{label} (Original)", color='blue')
+    with col2:
+        st.write(f"**{label} Edited**")
         st.audio(io.BytesIO(wav_to_bytes(filtered_audio, sr)), format='audio/wav')
         show_waveform(filtered_audio, sr, f"{label} (Edited)", color='red')
 
@@ -103,7 +112,6 @@ for i, label in enumerate(valve_labels):
             path = os.path.join(UPLOAD_FOLDER, f"{label}_{file.name}")
             with open(path, "wb") as f:
                 f.write(file.getbuffer())
-            st.audio(path, format="audio/wav")
             valve_paths[label] = path
 
 if "patient_saved" not in st.session_state:
@@ -116,7 +124,7 @@ with st.sidebar.expander("🗞️ Add Patient Info"):
     weight = st.number_input("Weight (kg)", min_value=2.0, max_value=300.0)
     gender = st.radio("Gender", ["Male", "Female", "Other"])
     notes = st.text_area("Clinical Notes")
-    phone = st.text_input("📞 Patient Phone (E.g. +15558675309)")
+    phone = st.text_input("📾 Patient Phone (E.g. +15558675309)")
 
 if height and weight:
     bmi = round(weight / ((height / 100) ** 2), 2)
@@ -143,19 +151,13 @@ if st.session_state["patient_saved"]:
     st.subheader("🔹 Original & Edited Waveforms")
     for label in valve_labels:
         if label in valve_paths:
-            st.markdown(f"### {label} Valve")
-            sr, audio = wav.read(valve_paths[label])
-            if audio.ndim > 1:
-                audio = audio[:, 0]
-            st.audio(valve_paths[label], format="audio/wav")
-            show_waveform(audio, sr, f"{label} (Original)")
-            edit_waveform(valve_paths[label], label)
+            edit_and_show_waveform(valve_paths[label], label)
 
 if st.button("📤 Send Case via SMS"):
     if len(valve_paths) == 4 and phone:
         try:
             message = (
-                f"🎹 PCG Case Summary\n"
+                f"🌹 PCG Case Summary\n"
                 f"Name: {name}\nAge: {age}\nGender: {gender}\nBMI: {bmi}\n"
                 f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\nNotes: {notes}"
             )
@@ -195,4 +197,4 @@ div.stButton > button:first-child {
     color: white;
 }
 </style>""", unsafe_allow_html=True)
-                        
+    
